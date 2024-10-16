@@ -1,0 +1,4 @@
+# Example of ignored files
+/node_modules
+/dist
+*.log
