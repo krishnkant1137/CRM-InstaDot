@@ -1,8 +1,8 @@
 const express = require('express');
 const router = express.Router();
 const Batch = require('../models/Batch');
-const Enquiry = require('../models/Enquiry'); // Correct import for Enquiry model
-const Student = require('../models/Student'); // Assuming this is your student model
+const Enquiry = require('../models/Enquiry');
+const Student = require('../models/Student');
 
 // Create a new student
 router.post('/create', async (req, res) => {
@@ -27,64 +27,53 @@ router.get('/', async (req, res) => {
 
 // Search Enquiry by Phone Number
 router.get('/search', async (req, res) => {
-  const phoneNumber = req.query.phone; // Get the phone number from the query parameters
+  const phoneNumber = req.query.phone;
 
   try {
-    const enquiry = await Enquiry.findOne({ mobileNumber: phoneNumber }); // Search for the enquiry
+    const enquiry = await Enquiry.findOne({ mobileNumber: phoneNumber });
     if (enquiry) {
-      return res.status(200).json(enquiry); // Return the found enquiry
+      return res.status(200).json(enquiry);
     }
-    return res.status(404).json({ message: 'No enquiry found with this phone number.' }); // Handle not found
+    return res.status(404).json({ message: 'No enquiry found with this phone number.' });
   } catch (error) {
     console.error('Error fetching enquiry:', error);
-    return res.status(500).json({ message: 'Server error' }); // Handle server error
+    return res.status(500).json({ message: 'Server error' });
   }
 });
 
-router.put('/api/enquiries/enquiry/:id', async (req, res) => {
-  try {
-      const { id } = req.params;
-      const { response } = req.body;
+// Update response by mobile number
+router.put('/enquiry/update-response', async (req, res) => {
+  const { phoneNumber, response } = req.body;
 
-      const enquiry = await Enquiry.findById(id);
-      if (enquiry) {
-        return res.status(200).json({
-            ...enquiry.toObject(), // Spread the enquiry object
-            enquiryId: enquiry._id // Add enquiryId to the response
-        });
+  try {
+    // Find and update the enquiry based on mobile number
+    const updatedEnquiry = await Enquiry.findOneAndUpdate(
+      { mobileNumber: phoneNumber },
+      { response },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedEnquiry) {
+      return res.status(404).json({ message: 'Enquiry not found' });
     }
 
-      enquiry.response = response; // Update the response field
-      await enquiry.save(); // Save the updated enquiry
-
-      res.status(200).send('Response updated successfully');
+    res.status(200).json({
+      message: 'Response updated successfully',
+      enquiry: updatedEnquiry,
+    });
   } catch (error) {
-      console.error('Error updating enquiry:', error);
-      res.status(500).send('Server error');
+    console.error('Error updating enquiry:', error);
+    res.status(500).json({ message: 'Server error', error });
   }
 });
-
-
-// Get a student by roll number
-router.get('/:rollNumber', async (req, res) => {
-  try {
-    const student = await Student.findOne({ rollNumber: req.params.rollNumber });
-    if (!student) {
-      return res.status(404).json({ message: 'Student not found' });
-    }
-    res.json(student);
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching student', error });
-  }
-});
-
+  
 // Update a student's details
 router.put('/:id', async (req, res) => {
-  console.log('Updating student with ID:', req.params.id); // Log the ID
-  console.log('Request body:', req.body); // Log the request body
+  console.log('Updating student with ID:', req.params.id);
+  console.log('Request body:', req.body);
   try {
-    const student = await Student.findOneAndUpdate(
-      { _id: req.params.id }, // Change here to match by id
+    const student = await Student.findByIdAndUpdate(
+      req.params.id,
       req.body,
       { new: true }
     );
