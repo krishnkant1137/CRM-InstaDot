@@ -1,143 +1,112 @@
-// // src/components/FacultiesLogin.jsx
-// import React, { useState } from 'react';
-// import { useNavigate } from 'react-router-dom';
-// import axios from 'axios';
+// src/Faculties.jsx
+import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { facultiesData } from "./data"; // Assuming you have a data file for faculties
 
-// const FacultiesLogin = () => {
-//   const [username, setUsername] = useState('');
-//   const [password, setPassword] = useState('');
-//   const [modalVisible, setModalVisible] = useState(false);
-//   const [modalMessage, setModalMessage] = useState('');
-//   const navigate = useNavigate();
+const Faculties = () => {
+  const [credentials, setCredentials] = useState({ id: "", password: "" });
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authenticatedFacility, setAuthenticatedFacility] = useState(null);
 
-//   const handleLogin = async (e) => {
-//     e.preventDefault();
-//     try {
-//       const response = await axios.post('http://localhost:5000/api/faculties/login', { username, password });
-//       if (response.data.token) {
-//         localStorage.setItem('facultiesAuthToken', response.data.token);
-//         localStorage.setItem('facultyUsername', response.data.username); // Store the faculty's username
-//         navigate(`/faculties/dashboard/${response.data.username}`); // Redirect to faculty-specific dashboard
-//       }
-//     } catch (error) {
-//       console.error('Error during login:', error);
-//     }
-//   };
-  
-//   return (
-//     <div className="flex justify-center items-center min-h-[85vh] bg-gray-100">
-//       <form onSubmit={handleLogin} className="bg-white p-12 rounded-2xl shadow-2xl w-[32rem] space-y-8 mt-8">
-//         <h2 className="text-4xl font-bold mb-6 text-center text-blue-800">Faculties Login</h2>
-//         <input
-//           type="text"
-//           placeholder="Username"
-//           value={username}
-//           onChange={(e) => setUsername(e.target.value)}
-//           className="block w-full mb-6 p-4 rounded-xl text-lg border border-gray-300 focus:outline-none focus:ring-4 focus:ring-blue-500"
-//           required
-//         />
-//         <input
-//           type="password"
-//           placeholder="Password"
-//           value={password}
-//           onChange={(e) => setPassword(e.target.value)}
-//           className="block w-full mb-6 p-4 rounded-xl text-lg border border-gray-300 focus:outline-none focus:ring-4 focus:ring-blue-500"
-//           required
-//         />
-//         <button
-//           type="submit"
-//           className="w-full bg-blue-500 text-white p-4 rounded-xl text-2xl font-semibold hover:bg-blue-600 transition duration-200"
-//         >
-//           Login
-//         </button>
-//       </form>
+  // Default credentials for faculties
+  const defaultCredentials = [
+    { id: "faculty1", password: "password1" },
+    { id: "faculty2", password: "password2" },
+    { id: "faculty3", password: "password3" },
+  ];
 
-//       {modalVisible && (
-//         <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
-//           <div className="bg-white p-6 rounded-lg shadow-lg text-center">
-//             <h3 className="text-lg font-semibold">{modalMessage}</h3>
-//             <button 
-//               onClick={closeModal} 
-//               className="mt-4 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition duration-200"
-//             >
-//               Close
-//             </button>
-//           </div>
-//         </div>
-//       )}
-//     </div>
-//   );
-// };
+  const navigate = useNavigate();
 
-// export default FacultiesLogin;
+  const handleFacilityClick = (facility) => {
+    setAuthenticatedFacility(facility);
+    setIsAuthModalOpen(true);
+  };
 
+  const handleAuthSubmit = () => {
+    const isAuthenticated = defaultCredentials.some(
+      (cred) =>
+        cred.id === credentials.id && cred.password === credentials.password
+    );
 
-
-
-import React, { useState } from 'react';
-
-const Login = ({ onLogin }) => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState(false); // State for success message
-
-  const handleLogin = (e) => {
-    e.preventDefault();
-    // You can replace these with your actual credentials
-    const validEmail = 'jay@gmail.com'; // Example email
-    const validPassword = '111111'; // Example password
-
-    if (email === validEmail && password === validPassword) {
-      setSuccess(true); // Set success to true
-      setError(''); // Clear any previous error messages
-      onLogin(); // Call the onLogin function passed as a prop
+    if (isAuthenticated) {
+      setIsAuthModalOpen(false);
+      navigate(`/AkshaySirDashboard`); // Redirect to Akshay Sir's Dashboard
     } else {
-      setError('Invalid email or password'); // Set error message for invalid credentials
-      setSuccess(false); // Clear success message on error
+      alert("Invalid ID or Password");
     }
   };
 
-  return (
-    <div className="flex flex-col items-center justify-center h-screen bg-gray-100">
-      <div className="bg-white p-6 rounded shadow-md w-96">
-        <h2 className="text-2xl font-bold mb-4">Login</h2>
-        {error && <p className="text-red-500 mb-2">{error}</p>}
-        {success && <p className="text-green-500 mb-2">Login successful!</p>} {/* Success message */}
-        <form onSubmit={handleLogin}>
-          <div className="mb-4">
-            <label className="block mb-1" htmlFor="email">Email</label>
-            <input
-              type="email"
-              id="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="border border-gray-300 rounded w-full p-2"
-              required
-            />
+  const renderTeachers = () => {
+    return (
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-8">
+        {facultiesData.map((facility, index) => (
+          <div
+            key={index}
+            className="transform transition-transform duration-500 hover:scale-105 rounded-lg p-6 cursor-pointer bg-gradient-to-br from-blue-400 to-blue-600 text-white"
+            onClick={() => handleFacilityClick(facility)}
+          >
+            <h3 className="text-2xl font-bold mb-3 text-center">
+              {facility.teacher}
+            </h3>
+            <p className="text-center mb-5">{facility.name}</p>
+            <div className="flex justify-center">
+              <button className="bg-white text-blue-600 font-bold py-2 px-4 rounded-lg transition duration-300 transform hover:-translate-y-1 hover:bg-blue-50">
+                Select
+              </button>
+            </div>
           </div>
-          <div className="mb-4">
-            <label className="block mb-1" htmlFor="password">Password</label>
+        ))}
+      </div>
+    );
+  };
+
+  return (
+    <div className="max-w-6xl mx-auto p-8 rounded-lg bg-gradient-to-tl from-gray-50 to-gray-200 relative">
+      <h1 className="text-5xl font-bold mb-10 text-center text-blue-900 transition-opacity duration-500 opacity-90 hover:opacity-100">
+        Faculties
+      </h1>
+
+      {renderTeachers()}
+
+      {isAuthModalOpen && (
+        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50">
+          <div className="bg-white p-6 rounded-lg shadow-lg">
+            <h2 className="text-xl font-bold mb-4">Login</h2>
+            <input
+              type="text"
+              placeholder="Faculty ID"
+              value={credentials.id}
+              onChange={(e) =>
+                setCredentials({ ...credentials, id: e.target.value })
+              }
+              className="border border-gray-300 p-2 mb-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
             <input
               type="password"
-              id="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="border border-gray-300 rounded w-full p-2"
-              required
+              placeholder="Password"
+              value={credentials.password}
+              onChange={(e) =>
+                setCredentials({ ...credentials, password: e.target.value })
+              }
+              className="border border-gray-300 p-2 mb-4 rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            <button
+              onClick={handleAuthSubmit}
+              className="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 hover:bg-blue-700"
+            >
+              Login
+            </button>
+            <button
+              onClick={() => setIsAuthModalOpen(false)}
+              className="ml-2 bg-gray-600 text-white font-bold py-2 px-4 rounded-lg transition duration-300 hover:bg-gray-700"
+            >
+              Cancel
+            </button>
           </div>
-          <button
-            type="submit"
-            className="bg-blue-500 text-white rounded p-2 w-full hover:bg-blue-600 transition duration-200"
-          >
-            Login
-          </button>
-        </form>
-      </div>
+        </div>
+      )}
     </div>
   );
 };
 
-export default Login;
-
+export default Faculties;
