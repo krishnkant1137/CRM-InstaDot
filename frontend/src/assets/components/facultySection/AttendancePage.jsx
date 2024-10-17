@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from "react-router-dom";
 
 const AttendancePage = () => {
   const navigate = useNavigate();
-
   const [batches, setBatches] = useState([]);
   const [students, setStudents] = useState([]);
   const [selectedBatch, setSelectedBatch] = useState(null);
@@ -17,7 +16,7 @@ const AttendancePage = () => {
     const fetchBatches = async () => {
       try {
         setLoading(true);
-        const response = await fetch("/api/batches");
+        const response = await fetch("/api/attendance"); // Updated to match your route setup
         if (!response.ok) throw new Error("Failed to fetch batches");
         const data = await response.json();
         setBatches(data);
@@ -31,131 +30,141 @@ const AttendancePage = () => {
   }, []);
 
   // Handle batch selection
-  const handleBatchSelect = async (batchId) => {
+  const handleBatchSelect = (batchId) => {
     setSelectedBatch(batchId);
-    try {
-      setLoading(true);
-      const response = await fetch(`/api/batches/${batchId}/students`);
-      if (!response.ok) throw new Error("Failed to fetch students for this batch");
-      const data = await response.json();
-      setStudents(data);
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setLoading(false);
-    }
+    const selectedBatchData = batches.find((batch) => batch._id === batchId);
+    setStudents(selectedBatchData ? selectedBatchData.students : []);
   };
 
   // Handle attendance checkbox change
-  const handleAttendanceChange = (rollNumber) => {
+  const handleAttendanceChange = (studentId) => {
     setAttendanceData((prev) => ({
       ...prev,
-      [rollNumber]: !prev[rollNumber], // Toggle attendance
+      [studentId]: !prev[studentId], // Toggle attendance
     }));
   };
 
-  // Submit attendance data
-  const handleSubmitAttendance = async () => {
-    const attendanceToSubmit = {
-      batchId: selectedBatch,
-      date: new Date().toISOString().split('T')[0], // Format date to YYYY-MM-DD
-      presentStudents: Object.keys(attendanceData).filter(
-        (rollNumber) => attendanceData[rollNumber]
-      ),
-    };
+ // Submit attendance data
+const handleSubmitAttendance = async () => {
+  // Derive present and absent students with roll numbers
+  const presentStudents = students
+    .filter((student) => attendanceData[student._id])
+    .map((student) => student.rollNumber);
 
-    console.log("Submitting attendance data:", attendanceToSubmit);
+  const absentStudents = students
+    .filter((student) => !attendanceData[student._id])
+    .map((student) => student.rollNumber);
 
-    try {
-      setIsSubmitting(true);
-      const response = await fetch("/api/attendance", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(attendanceToSubmit),
-      });
-
-      if (response.ok) {
-        alert("Attendance submitted successfully!");
-
-        // Clear attendance data after successful submission
-        setAttendanceData({});
-        setStudents([]); // Optionally clear the student list
-        setSelectedBatch(null); // Optionally reset the selected batch
-      } else {
-        const errorData = await response.json(); // Capture the error message from the response
-        throw new Error(errorData.message || "Failed to submit attendance");
-      }
-    } catch (error) {
-      console.error("Error submitting attendance:", error);
-      alert("Failed to submit attendance. Please try again.");
-    } finally {
-      setIsSubmitting(false);
-    }
+  const attendanceToSubmit = {
+    batchId: selectedBatch,
+    date: new Date().toLocaleDateString("en-GB").replace(/\//g, "-"), // Format date to dd-mm-yyyy
+    presentStudents,
+    absentStudents,
   };
 
+  try {
+    setIsSubmitting(true);
+    const response = await fetch("/api/attendance/submit-attendance", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(attendanceToSubmit),
+    });
+
+    if (response.ok) {
+      alert("Attendance submitted successfully!");
+
+      // Clear attendance data after successful submission
+      setAttendanceData({});
+      setStudents([]);
+      setSelectedBatch(null);
+    } else {
+      const errorData = await response.json();
+      throw new Error(errorData.message || "Failed to submit attendance");
+    }
+  } catch (error) {
+    console.error("Error submitting attendance:", error);
+    alert("Failed to submit attendance. Please try again.");
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
   return (
-    <div className="p-6">
+    <div className="bg-gray-100 min-h-screen p-6">
       <button
-        onClick={() => navigate('/AkshaySirDashboard')}
+        onClick={() => navigate("/facultiesDashboard")}
         className="bg-gray-500 text-white py-2 px-4 rounded hover:bg-gray-600 mb-4"
       >
         Back
       </button>
-      <h1 className="text-3xl font-bold mb-4">Attendance</h1>
+      <h1 className="text-3xl font-bold mb-4 text-center">Attendance</h1>
 
       {loading ? (
-        <p>Loading...</p>
+        <div className="text-center">Loading...</div>
       ) : error ? (
-        <p className="text-red-500">{error}</p>
+        <p className="text-red-500 text-center">{error}</p>
       ) : (
-        <select
-          onChange={(e) => handleBatchSelect(e.target.value)}
-          value={selectedBatch || ""}
-          className="border border-gray-300 p-2 rounded mb-4"
-        >
-          <option value="" disabled>Select Batch</option>
-          {batches.map((batch) => (
-            <option key={batch._id} value={batch._id}>{batch.name}</option>
-          ))}
-        </select>
+        <div className="flex flex-col items-center">
+          <select
+            onChange={(e) => handleBatchSelect(e.target.value)}
+            value={selectedBatch || ""}
+            className="border border-gray-300 p-2 rounded mb-4 w-64 bg-white text-black"
+          >
+            <option value="" disabled className="text-gray-100">
+              Select Batch
+            </option>
+            {batches.map((batch) => (
+              <option key={batch._id} value={batch._id} className="text-black-800 bg-white-800">
+                {batch.name}
+              </option>
+            ))}
+          </select>
+        </div>
       )}
 
-      {students.length > 0 && (
+      {students.length > 0 && selectedBatch && (
         <div className="mt-4">
-          <h2 className="text-2xl mb-2">Students in {selectedBatch}</h2>
-          <table className="min-w-full border border-gray-300">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="border px-4 py-2">Roll No</th>
-                <th className="border px-4 py-2">Name</th>
-                <th className="border px-4 py-2">Mark Present</th>
-              </tr>
-            </thead>
-            <tbody>
-              {students.map((student) => (
-                <tr key={student.rollNumber}>
-                  <td className="border px-4 py-2">{student.rollNumber}</td>
-                  <td className="border px-4 py-2">{student.fullName}</td>
-                  <td className="border px-4 py-2 text-center">
-                    <input
-                      type="checkbox"
-                      checked={attendanceData[student.rollNumber] || false}
-                      onChange={() => handleAttendanceChange(student.rollNumber)}
-                    />
-                  </td>
+          <h2 className="text-2xl mb-2 text-center">
+            Students in {batches.find((batch) => batch._id === selectedBatch)?.name}
+          </h2>
+          <div className="overflow-x-auto rounded-lg shadow-md">
+            <table className="min-w-full border border-gray-800 bg-white">
+              <thead>
+                <tr className="bg-gray-200">
+                  <th className="border px-4 py-2">Roll No</th>
+                  <th className="border px-4 py-2">Name</th>
+                  <th className="border px-4 py-2 text-center">Mark Present</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-          <button
-            onClick={handleSubmitAttendance}
-            className="mt-4 bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700"
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? "Submitting..." : "Submit Attendance"}
-          </button>
+              </thead>
+              <tbody>
+                {students.map((student) => (
+                  <tr key={student._id} className="hover:bg-gray-100">
+                    <td className="border px-4 py-2">{student.rollNumber}</td>
+                    <td className="border px-4 py-2">{student.fullName}</td>
+                    <td className="border px-4 py-2 text-center">
+                      <input
+                        type="checkbox"
+                        checked={attendanceData[student._id] || false}
+                        onChange={() => handleAttendanceChange(student._id)}
+                        className="cursor-pointer"
+                      />
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="text-center mt-4">
+            <button
+              onClick={handleSubmitAttendance}
+              className="bg-green-600 text-white py-2 px-4 rounded hover:bg-green-700"
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? "Submitting..." : "Submit Attendance"}
+            </button>
+          </div>
         </div>
       )}
     </div>
