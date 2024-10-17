@@ -39,20 +39,21 @@ const admissionSchema = new mongoose.Schema({
   permanentAddress: { type: String },
   emergencyContact: emergencyContactSchema,
   courseName: { type: String },
-  totalFee: { type: Number }, // Changed to Number
-  registrationFee: { type: Number }, // Changed to Number
+  totalFee: { type: Number },
+  registrationFee: { type: Number }, 
   admissionType: { type: String, default: 'Offline' },
   paymentType: { type: String, default: 'Full Payment' },
   paymentMode: { type: String, default: 'Cash' },
   startDate: { type: Date },
   installments: { type: Number },
-  paymentHistory: [paymentHistorySchema], // Changed to an array
+  paymentHistory: [paymentHistorySchema],
   paymentReceived: { type: Number, default: 0 },
   paymentDate: { type: Date },
   passportPhoto: { type: String }, 
   aadhaarCard: { type: String }, 
   documentsSubmitted: documentsSubmittedSchema,
   batch: { type: mongoose.Schema.Types.ObjectId, ref: 'Batch' },
+  classification: { type: String, enum: ['Not Classified', 'Good', 'Average', 'Weak', 'Better'], default: 'Not Classified' }
 });
 
 const Admission = mongoose.models.Admission || mongoose.model('Admission', admissionSchema);
