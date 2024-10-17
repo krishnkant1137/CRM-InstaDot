@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const enquirySchema = new mongoose.Schema({
-  enquiryDate: { type: Date, required: true, default: Date.now }, // Include default value
+  enquiryDate: { type: Date, required: true, default: Date.now },
   fullName: { type: String, required: true },
   mobileNumber: { type: String, required: true },
   email: { type: String, required: true },
@@ -11,8 +11,9 @@ const enquirySchema = new mongoose.Schema({
   passingYear: { type: String, required: true },
   courseName: { type: String, required: true },
   source: { type: String, required: true },
-  otherSource: { type: String }, // Optional field for other sources
-  response: { type: String, default: '' }, // Add this field to store response
+  otherSource: { type: String }, 
+  response: { type: String, default: '' },
+  query: String,
 });
 
 module.exports = mongoose.model('Enquiry', enquirySchema);
