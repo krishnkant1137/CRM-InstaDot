@@ -4,51 +4,29 @@ const Attendance = require('../models/Attendance');
 const Batch = require('../models/Batch');
 const Admission = require('../models/Admission');
 
-// POST route for submitting attendance
-router.post('/', async (req, res) => {
-  const { batchId, date, presentStudents } = req.body;
+router.post('/submit-attendance', async (req, res) => {
+  const { date, batchId, presentStudents, absentStudents } = req.body;
 
   try {
-    // Check if attendance for this batch and date already exists
-    const existingAttendance = await Attendance.findOne({ batchId, date });
+      // Check if attendance for this date and batch already exists
+      const existingRecord = await Attendance.findOne({ date, batchId });
+      if (existingRecord) {
+          return res.status(400).json({ message: 'Attendance has already been submitted for this date and batch.' });
+      }
 
-    if (existingAttendance) {
-      return res.status(400).json({ message: 'Attendance for this batch already submitted for today.' });
-    }
+      // Create a new attendance record
+      const newAttendance = new Attendance({
+          date,
+          batchId,
+          presentStudents,
+          absentStudents
+      });
 
-    // Fetch students in the batch
-    const batch = await Batch.findById(batchId).populate('students');
-
-    // Create attendance records for each student
-    const attendanceRecords = batch.students.map(student => ({
-      studentId: student._id,
-      isPresent: presentStudents.includes(student._id.toString())
-    }));
-
-    // Create a new attendance record
-    const attendance = new Attendance({
-      batchId,
-      date,
-      attendance: attendanceRecords,
-    });
-    await attendance.save();
-
-    // Update total attendance for each student
-    for (const student of attendanceRecords) {
-      const update = student.isPresent ? 
-        { $inc: { totalAttendance: 1 } } : 
-        { $inc: { totalAbsent: 1 } }; // Assuming `totalAbsent` is a field in your Admission model
-
-      await Admission.findByIdAndUpdate(
-        student.studentId,
-        update
-      );
-    }
-
-    res.status(201).json(attendance);
+      await newAttendance.save();
+      res.status(201).json({ message: 'Attendance submitted successfully.', attendance: newAttendance });
   } catch (error) {
-    console.error("Error submitting attendance:", error);
-    res.status(500).json({ message: 'Error submitting attendance', error });
+    console.error("Error submitting attendance:", error); // Log the error for debugging
+      res.status(500).json({ message: 'Server error', error });
   }
 });
 
@@ -74,37 +52,6 @@ router.get('/:batchId', async (req, res) => {
   } catch (error) {
     console.error("Error fetching attendance records:", error);
     res.status(500).json({ message: 'Error fetching attendance records', error });
-  }
-});
-
-// GET route for fetching performance data
-router.get('/performance', async (req, res) => {
-  console.log("Performance endpoint hit"); // Log to see if it's reached
-
-  try {
-    const students = await Admission.find();
-    const performanceData = await Promise.all(students.map(async (student) => {
-      const attendanceRecords = await Attendance.find({ "attendance.studentId": student._id });
-      const totalPresent = attendanceRecords.reduce((acc, record) =>
-        acc + record.attendance.filter(att => att.studentId.equals(student._id) && att.isPresent).length, 0);
-      const totalAbsent = attendanceRecords.reduce((acc, record) =>
-        acc + record.attendance.filter(att => att.studentId.equals(student._id) && !att.isPresent).length, 0);
-
-      const attendancePercentage = totalPresent + totalAbsent > 0 ? (totalPresent / (totalPresent + totalAbsent) * 100).toFixed(2) : 0;
-
-      return {
-        studentId: student._id,
-        name: student.fullName, // Adjust according to your Admission model
-        totalPresent,
-        totalAbsent,
-        attendancePercentage
-      };
-    }));
-
-    res.json(performanceData);
-  } catch (error) {
-    console.error('Error fetching performance data:', error);
-    res.status(500).json({ message: 'Error fetching performance data', error });
   }
 });
 
