@@ -1,80 +1,129 @@
 const express = require('express');
 const router = express.Router();
-const Attendance = require('../models/Attendance');
 const Batch = require('../models/Batch');
 const Admission = require('../models/Admission');
 
-router.post('/submit-attendance', async (req, res) => {
-  const { date, batchId, presentStudents, absentStudents } = req.body;
-
+// Create a new batch
+router.post('/create', async (req, res) => {
   try {
-      // Check if attendance for this date and batch already exists
-      const existingRecord = await Attendance.findOne({ date, batchId });
-      if (existingRecord) {
-          return res.status(400).json({ message: 'Attendance has already been submitted for this date and batch.' });
-      }
-
-      // Create a new attendance record
-      const newAttendance = new Attendance({
-          date,
-          batchId,
-          presentStudents,
-          absentStudents
-      });
-
-      await newAttendance.save();
-      res.status(201).json({ message: 'Attendance submitted successfully.', attendance: newAttendance });
+    const { name } = req.body;
+    const newBatch = new Batch({ name });
+    await newBatch.save();
+    res.status(201).json(newBatch);
   } catch (error) {
-    console.error("Error submitting attendance:", error); // Log the error for debugging
-      res.status(500).json({ message: 'Server error', error });
+    res.status(500).json({ message: 'Error creating batch', error });
   }
 });
 
-// GET route for fetching attendance records for the performance section
-router.get('/:batchId', async (req, res) => {
-  try {
-    const attendanceRecords = await Attendance.find({ batchId: req.params.batchId });
-
-    if (attendanceRecords.length === 0) {
-      return res.status(404).json({ message: 'No attendance records found for this batch.' });
-    }
-
-    // Format the response to include only necessary fields
-    const formattedRecords = attendanceRecords.map(record => ({
-      date: record.date,
-      attendance: record.attendance.map(student => ({
-        studentId: student.studentId,
-        isPresent: student.isPresent
-      }))
-    }));
-
-    res.json(formattedRecords);
-  } catch (error) {
-    console.error("Error fetching attendance records:", error);
-    res.status(500).json({ message: 'Error fetching attendance records', error });
-  }
-});
-
-// GET route for fetching all batches (added for frontend use)
+// Get all batches
 router.get('/', async (req, res) => {
   try {
     const batches = await Batch.find().populate('students');
-    
-    if (batches.length === 0) {
-      return res.status(404).json({ message: 'No batches found.' });
+    res.json(batches);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching batches', error });
+  }
+});
+
+// Add a student to a batch
+router.post('/add-student', async (req, res) => {
+  try {
+    const { rollNumber, batchId } = req.body;
+
+    // Find the student by rollNumber in the Admission model
+    const student = await Admission.findOne({ rollNumber });
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' });
     }
 
-    // Format the response
-    const formattedBatches = batches.map(batch => ({
-      _id: batch._id,
-      name: batch.fullName, // Adjust according to your batch schema
-      students: batch.students // You might want to format this further if needed
-    }));
+    // Find the batch and add the student to the students array if not already added
+    const batch = await Batch.findById(batchId);
+    if (!batch) {
+      return res.status(404).json({ message: 'Batch not found' });
+    }
 
-    res.json(formattedBatches);
+    // Check if the student is already in the batch
+    if (!batch.students.includes(student._id)) {
+      batch.students.push(student._id);
+      student.batch = batchId; // Assuming you have a field to store batch ID in the Admission model
+      await batch.save();
+      await student.save();
+    }
+
+    // Fetch the updated batch data with populated students
+    const updatedBatch = await Batch.findById(batchId).populate('students');
+    res.json({ message: 'Student added to batch', batch: updatedBatch });
   } catch (error) {
-    console.error("Error fetching batches:", error);
-    res.status(500).json({ message: 'Error fetching batches', error });
+    res.status(500).json({ message: 'Error adding student to batch', error });
+  }
+});
+
+// Remove a student from a batch
+router.post('/remove-student', async (req, res) => {
+  try {
+    const { rollNumber, batchId } = req.body;
+
+    // Find the student by rollNumber in the Admission model
+    const student = await Admission.findOne({ rollNumber });
+    if (!student) {
+      return res.status(404).json({ message: 'Student not found' });
+    }
+
+    // Find the batch and remove the student from the students array
+    const batch = await Batch.findById(batchId);
+    if (!batch) {
+      return res.status(404).json({ message: 'Batch not found' });
+    }
+
+    // Remove student from batch
+    batch.students = batch.students.filter(
+      (studentId) => studentId.toString() !== student._id.toString()
+    );
+    student.batch = null; // Clear the batch reference from the student
+    await batch.save();
+    await student.save();
+
+    // Fetch the updated batch data with populated students
+    const updatedBatch = await Batch.findById(batchId).populate('students');
+    res.json({ message: 'Student removed from batch', batch: updatedBatch });
+  } catch (error) {
+    res.status(500).json({ message: 'Error removing student from batch', error });
+  }
+});
+
+// New route: Get students for a specific batch
+router.get('/:id/students', async (req, res) => {
+  try {
+    const batchId = req.params.id;
+
+    // Find the batch by ID and populate the students
+    const batch = await Batch.findById(batchId).populate('students');
+    if (!batch) {
+      return res.status(404).json({ message: 'Batch not found' });
+    }
+
+    // Fetch the students associated with the batch
+    res.json(batch.students);
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching students for batch', error });
+  }
+});
+
+// Delete a batch by ID
+router.delete('/:id', async (req, res) => {
+  try {
+    const batchId = req.params.id;
+
+    // Delete the batch
+    const deletedBatch = await Batch.findByIdAndDelete(batchId);
+
+    if (!deletedBatch) {
+      return res.status(404).json({ message: 'Batch not found' });
+    }
+
+    res.status(200).json({ message: 'Batch deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ message: 'Error deleting batch', error });
   }
 });
 
